@@ -1,0 +1,17 @@
+DESCRIPTION >
+    Privacy-minimized aggregate operational telemetry for AccessAble Atlas.
+    Never stores raw text, user emails, IP addresses, or photo evidence.
+
+SCHEMA >
+    `timestamp` DateTime `json:$.timestamp`,
+    `event_type` LowCardinality(String) `json:$.event_type`,
+    `workspace_slug` LowCardinality(String) `json:$.workspace_slug`,
+    `category` LowCardinality(String) `json:$.category`,
+    `freshness_state` LowCardinality(String) `json:$.freshness_state`,
+    `confidence_bucket` LowCardinality(String) `json:$.confidence_bucket`,
+    `metric_value` Int32 `json:$.metric_value`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "workspace_slug, event_type, timestamp"
+
