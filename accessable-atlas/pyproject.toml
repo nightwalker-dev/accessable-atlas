@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "accessable-atlas"
+version = "1.0.0"
+description = "Find places through the details that matter. A community accessibility directory documenting entrances, facilities, routes, and confidence of observations."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "AccessAble Atlas Engineering"}
+]
+dependencies = [
+    "tornado>=6.4.0",
+    "bcrypt>=4.1.0",
+    "PyJWT>=2.8.0",
+    "Pillow>=10.0.0",
+    "beautifulsoup4>=4.12.0",
+]
+
+[project.scripts]
+accessable-atlas = "atlas.server:run_server"
+

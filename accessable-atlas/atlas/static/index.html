@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AccessAble Atlas — Find places through the details that matter</title>
+  <meta name="description" content="A community accessibility directory documenting entrances, facilities, routes, and confidence of observations." />
+  <link rel="stylesheet" href="/static/css/sage_circuit.css" />
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div id="aria-live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Top Architectural Header -->
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 3v18M3 12h18M6.5 6.5l11 11"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">
+            AccessAble Atlas
+            <span class="brand-tag">Sage Circuit</span>
+          </h1>
+          <p class="brand-subtitle">Find places through the details that matter · Entrances, facilities, routes &amp; verified observations</p>
+        </div>
+      </div>
+
+      <nav class="primary-nav" aria-label="Primary Workspace Navigation">
+        <button type="button" class="nav-tab active" data-view="directory" aria-current="page" id="nav-btn-directory">
+          <span>Directory &amp; Map</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="create-venue" id="nav-btn-create">
+          <span>+ Document a Venue</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="insights" id="nav-btn-insights">
+          <span>Coverage Insights</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="moderation" id="nav-btn-moderation">
+          <span>Moderation &amp; Audit</span>
+        </button>
+        <button type="button" class="nav-tab" data-view="settings" id="nav-btn-settings">
+          <span>Privacy &amp; Export</span>
+        </button>
+      </nav>
+
+      <div class="session-bar" id="session-bar">
+        <span class="role-pill" id="current-user-pill">Guest Reader (Read-Only)</span>
+        <button type="button" class="btn btn-cobalt btn-xs" id="btn-open-auth">Sign In / Switch Role</button>
+        <button type="button" class="btn btn-xs" id="btn-logout" hidden>Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Provenance, Data Boundary & Quick Role Switcher Bar -->
+  <aside class="provenance-strip" aria-label="Workspace Provenance and Evaluation Role Switcher">
+    <div class="provenance-inner">
+      <div class="provenance-items">
+        <span class="provenance-item">
+          <strong>Canonical Store:</strong>
+          <span id="db-mode-indicator">Supabase Schema (Local Transactional Engine)</span>
+        </span>
+        <span class="provenance-item">
+          <strong>Sample Policy:</strong>
+          <span>Seeded records carry explicit <code>Synthetic Sample</code> provenance badges</span>
+        </span>
+      </div>
+      <div class="quick-role-switcher" id="quick-role-switcher" aria-label="Instant Demo Account Role Switcher">
+        <span class="quick-role-label">Quick Role Switch:</span>
+        <button type="button" class="btn btn-xs" data-demo-email="maya.chen@atlas-demo.local">Contributor (Maya)</button>
+        <button type="button" class="btn btn-xs" data-demo-email="alex.rivera@atlas-demo.local">Operator (Alex)</button>
+        <button type="button" class="btn btn-xs" data-demo-email="samira.khan@atlas-demo.local">Moderator (Samira)</button>
+        <button type="button" class="btn btn-xs" data-demo-email="jordan.lee@atlas-demo.local">Viewer (Jordan)</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Workspace Content -->
+  <main id="main-content" class="workspace-main" tabindex="-1">
+    <div id="offline-banner" class="status-banner error" role="status" aria-live="assertive" hidden>
+      <span><strong>[!] Offline Mode Detected:</strong> Network connection is unavailable. Cached view remains readable; write actions will prompt to retry when back online.</span>
+    </div>
+    <div id="global-status-banner" class="status-banner" role="alert" hidden>
+      <span id="global-status-text"></span>
+      <button type="button" class="btn btn-xs" id="btn-dismiss-status" aria-label="Dismiss notification">Dismiss</button>
+    </div>
+
+    <!-- ====================================================================
+         VIEW 1: DIRECTORY & INTERACTIVE VECTOR MAP
+         ==================================================================== -->
+    <section id="view-directory" class="view-section active" aria-labelledby="heading-directory">
+      <h2 id="heading-directory" class="sr-only">Accessibility Directory and Coordinate Map</h2>
+
+      <!-- Search & Structured Access Filter Panel -->
+      <form id="filter-form" class="filter-panel" role="search" aria-label="Filter venues by accessibility attributes and freshness">
+        <div class="filter-grid-top">
+          <div>
+            <label class="form-label" for="filter-q">Search Venue, Street, or Access Feature</label>
+            <input type="search" id="filter-q" name="q" class="form-input" placeholder="e.g., Library, hoist, Fourth Ave, sensory..." />
+          </div>
+          <div>
+            <label class="form-label" for="filter-category">Venue Category</label>
+            <select id="filter-category" name="category" class="form-select">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="filter-city">City / District</label>
+            <select id="filter-city" name="city" class="form-select">
+              <option value="all">All Cities</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="filter-freshness">Freshness &amp; Alert State</label>
+            <select id="filter-freshness" name="freshness" class="form-select">
+              <option value="all">All Freshness States</option>
+              <option value="fresh_verified">Fresh · Verified (&lt;30d)</option>
+              <option value="aging_review_soon">Aging · Check Soon (31–90d)</option>
+              <option value="stale_reverify">Stale · Needs Re-Verification (&gt;90d)</option>
+              <option value="active_alert">Active Barrier Alert Only</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="filter-min-door">Min Door Width (cm)</label>
+            <input type="number" id="filter-min-door" name="min_door_width_cm" class="form-input" min="0" max="250" placeholder="e.g. 85" />
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <button type="button" class="btn" id="btn-reset-filters">Reset</button>
+          </div>
+        </div>
+
+        <div class="filter-facets-row" role="group" aria-label="Required physical and sensory accessibility attributes">
+          <label class="facet-check">
+            <input type="checkbox" id="filter-step-free" name="step_free" />
+            <span>Step-Free Entrance</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-restroom" name="accessible_restroom" />
+            <span>Wheelchair Restroom / Hoist</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-elevator" name="elevator_operational" />
+            <span>Operational Elevator</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-quiet" name="quiet_space" />
+            <span>Quiet / Sensory Space</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-hearing" name="hearing_loop" />
+            <span>Hearing Loop</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-braille" name="braille_signage" />
+            <span>Braille / Tactile Signage</span>
+          </label>
+          <label class="facet-check">
+            <input type="checkbox" id="filter-archived" name="include_archived" />
+            <span>Include Archived Records</span>
+          </label>
+        </div>
+
+        <!-- Saved Search Views Bar -->
+        <div class="saved-views-bar">
+          <div class="saved-view-pills" id="saved-views-container">
+            <span class="quick-role-label">Saved Views:</span>
+            <span id="saved-views-list" style="display: inline-flex; gap: 0.4rem; flex-wrap: wrap;"></span>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <label for="save-view-name" class="sr-only">New Saved View Name</label>
+            <input type="text" id="save-view-name" class="form-input" style="width: 210px; padding: 0.3rem 0.5rem; font-size: 0.8rem;" placeholder="Name current filter view..." />
+            <button type="button" class="btn btn-xs btn-cobalt" id="btn-save-current-view">Save View</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Directory Results Toolbar -->
+      <div class="directory-toolbar">
+        <div>
+          <strong id="results-count-summary" aria-live="polite">Loading venues...</strong>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-xs" id="btn-toggle-map-layout" aria-pressed="true">
+            Map + List Split View
+          </button>
+          <button type="button" class="btn btn-xs btn-primary" id="btn-cta-document-venue">
+            + Document New Venue
+          </button>
+        </div>
+      </div>
+
+      <!-- Synchronized Map + List Split Container -->
+      <div class="directory-split" id="directory-split-container">
+        <!-- Accessible Interactive Vector Map -->
+        <aside class="map-container-card" aria-label="Interactive Accessibility Coordinate Map">
+          <div class="map-header">
+            <h3 class="map-title">Spatial Coordinate Map</h3>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn btn-xs" id="btn-map-zoom-in" aria-label="Zoom in coordinate map">+</button>
+              <button type="button" class="btn btn-xs" id="btn-map-zoom-out" aria-label="Zoom out coordinate map">−</button>
+              <button type="button" class="btn btn-xs" id="btn-map-zoom-reset" aria-label="Reset coordinate map zoom">1:1</button>
+              <a href="/api/export/earth.kml" download="accessable-atlas-earth-3d.kml" class="btn btn-xs btn-cobalt" aria-label="Export all matching venues as Google Earth 3D KML">Google Earth 3D (.kml)</a>
+              <span class="provenance-pill" id="map-bounds-label">Seattle Metro Grid</span>
+            </div>
+          </div>
+          <svg id="atlas-vector-map" class="atlas-vector-map" viewBox="0 0 420 340" role="group" aria-label="Interactive map of documented venues. Use Tab to focus venue pins and Enter to inspect details.">
+            <!-- Populated dynamically with coordinate grid and accessible SVG pins -->
+          </svg>
+          <div class="map-legend" aria-label="Map Symbol and Freshness Legend">
+            <div class="legend-item">
+              <span class="legend-dot" style="background: #D4FF24;"></span>
+              <span>Circle [✓]: Fresh (&lt;30d)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background: #E8D2B5;"></span>
+              <span>Square [◷]: Aging (31–90d)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background: #E7B0DE;"></span>
+              <span>Diamond [↻]: Stale (&gt;90d)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background: #FF5A0A;"></span>
+              <span>Triangle [!]: Active Barrier Alert</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Venue List Cards -->
+        <div id="venue-list-container" class="venue-list-grid" role="region" aria-label="Matching Venue Profiles">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 2: CREATE OR EDIT VENUE PROFILE & STRUCTURED ATTRIBUTES
+         ==================================================================== -->
+    <section id="view-create-venue" class="view-section" aria-labelledby="heading-create-venue">
+      <div class="spec-card">
+        <div class="spec-card-title">
+          <h2 id="heading-create-venue" style="margin: 0; font-size: 1.25rem;">Document a Venue Profile &amp; Physical Access Attributes</h2>
+          <button type="button" class="btn btn-xs" id="btn-cancel-venue-form">← Back to Directory</button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0;">
+          Record measurable entrance widths, threshold heights, restroom transfer specs, and sensory conditions. All fields are validated server-side and recorded in the workspace provenance log.
+        </p>
+
+        <!-- Journey A.3 / B.1 / B.3: Structured Venue JSON Import with Mandatory Human Review -->
+        <details id="venue-import-details" style="background: var(--surface-panel); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-3); margin-bottom: var(--space-4);">
+          <summary style="cursor: pointer; font-weight: 700; color: var(--color-acid-lime); font-size: 0.9rem;">
+            Import Venue JSON Record (Extract, Review &amp; Confirm Before Saving)
+          </summary>
+          <div style="margin-top: var(--space-3);">
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0;">
+              Paste a municipal or partner accessibility JSON record below (or load the sample civic import payload), then click <strong>Load into Form for Human Review</strong>. Imported values are never persisted without your explicit review and confirmation.
+            </p>
+            <label class="form-label" for="import-json-textarea">Structured Venue JSON Payload</label>
+            <textarea id="import-json-textarea" class="form-textarea" style="font-family: var(--font-mono); font-size: 0.78rem; min-height: 95px;" placeholder='{"name": "...", "category": "civic_building", "access_attributes": {...}}'></textarea>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: var(--space-2);">
+              <button type="button" class="btn btn-xs" id="btn-load-sample-import">Load Sample Civic JSON</button>
+              <button type="button" class="btn btn-xs btn-cobalt" id="btn-parse-import-to-form">Load into Form for Human Review →</button>
+            </div>
+          </div>
+        </details>
+
+        <form id="venue-form" novalidate>
+          <input type="hidden" id="venue-form-id" value="" />
+          <input type="hidden" id="venue-form-mode" value="create" />
+
+          <div id="import-confirmation-banner" class="barrier-alert-box" style="background: rgba(21, 88, 201, 0.2); border-color: var(--color-acid-lime); margin-bottom: var(--space-4);" hidden>
+            <div style="width: 100%;">
+              <strong style="color: var(--color-acid-lime);">[REVIEW REQUIRED] Imported Venue Values Loaded:</strong>
+              <p style="margin: 4px 0 8px 0; font-size: 0.82rem;">Please inspect every extracted entrance, restroom, and route measurement below before confirming persistence.</p>
+              <label class="facet-check">
+                <input type="checkbox" id="vf-import-confirmed" />
+                <span><strong>I have reviewed and confirmed all imported accessibility values for accuracy *</strong></span>
+              </label>
+              <div class="field-error-msg" id="err-user_confirmed_imported_values"></div>
+            </div>
+          </div>
+
+          <fieldset style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4);">
+            <legend style="font-weight: 700; color: var(--color-acid-lime); padding: 0 8px;">1. Venue Identity &amp; Location Coordinates</legend>
+            <div class="spec-columns">
+              <div>
+                <label class="form-label" for="vf-name">Venue Name *</label>
+                <input type="text" id="vf-name" class="form-input" required placeholder="e.g., Northgate Civic Library" />
+                <div class="field-error-msg" id="err-name"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-category">Category *</label>
+                <select id="vf-category" class="form-select" required></select>
+                <div class="field-error-msg" id="err-category"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-address">Street Address *</label>
+                <input type="text" id="vf-address" class="form-input" required placeholder="e.g., 10548 Fifth Ave NE" />
+                <div class="field-error-msg" id="err-address"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-city">City *</label>
+                <input type="text" id="vf-city" class="form-input" required value="Seattle" />
+                <div class="field-error-msg" id="err-city"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-postal">Postal Code *</label>
+                <input type="text" id="vf-postal" class="form-input" required value="98125" />
+                <div class="field-error-msg" id="err-postal_code"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-hours">Operating Hours</label>
+                <input type="text" id="vf-hours" class="form-input" value="08:00 - 20:00 Daily" />
+              </div>
+              <div>
+                <label class="form-label" for="vf-lat">Latitude (-90 to 90) *</label>
+                <input type="number" step="0.0001" id="vf-lat" class="form-input" required value="47.6105" />
+                <div class="field-error-msg" id="err-latitude"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-lng">Longitude (-180 to 180) *</label>
+                <input type="number" step="0.0001" id="vf-lng" class="form-input" required value="-122.3280" />
+                <div class="field-error-msg" id="err-longitude"></div>
+              </div>
+            </div>
+            <div style="margin-top: var(--space-3);">
+              <label class="form-label" for="vf-summary">Overall Accessibility Summary (min 10 chars) *</label>
+              <textarea id="vf-summary" class="form-textarea" required placeholder="Describe primary step-free arrival point, restroom location, and any notable route specifics..."></textarea>
+              <div class="field-error-msg" id="err-summary"></div>
+            </div>
+            <div style="margin-top: var(--space-3);">
+              <label class="form-label" for="vf-barrier-alert">Active Temporary Barrier Alert (Optional)</label>
+              <input type="text" id="vf-barrier-alert" class="form-input" placeholder="Leave blank if normal; or describe temporary elevator/ramp outage" />
+            </div>
+          </fieldset>
+
+          <fieldset style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4);">
+            <legend style="font-weight: 700; color: var(--color-acid-lime); padding: 0 8px;">2. Entrance &amp; Threshold Measurements</legend>
+            <div class="spec-columns">
+              <div>
+                <label class="facet-check" style="margin-top: 1.4rem;">
+                  <input type="checkbox" id="vf-step-free" checked />
+                  <span><strong>Step-Free Primary Entrance</strong></span>
+                </label>
+              </div>
+              <div>
+                <label class="form-label" for="vf-door-width">Entrance Door Clear Width (cm) *</label>
+                <input type="number" id="vf-door-width" class="form-input" min="40" max="300" required value="96" />
+                <span class="form-hint">Standard wheelchair clearance is &ge; 82 cm.</span>
+                <div class="field-error-msg" id="err-access_attributes.entrance_door_width_cm"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-threshold">Threshold Height (mm) *</label>
+                <input type="number" id="vf-threshold" class="form-input" min="0" max="250" required value="0" />
+                <span class="form-hint">0–13 mm is flush/beveled.</span>
+                <div class="field-error-msg" id="err-access_attributes.threshold_height_mm"></div>
+              </div>
+              <div>
+                <label class="form-label" for="vf-door-opener">Door Opener Mechanism *</label>
+                <select id="vf-door-opener" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="facet-check" style="margin-top: 1.4rem;">
+                  <input type="checkbox" id="vf-ramp-present" />
+                  <span>Entrance Ramp Installed</span>
+                </label>
+              </div>
+              <div>
+                <label class="form-label" for="vf-ramp-slope">Ramp Slope (Degrees, 0–30)</label>
+                <input type="number" step="0.1" id="vf-ramp-slope" class="form-input" placeholder="e.g., 2.5" />
+              </div>
+            </div>
+            <div style="margin-top: var(--space-3);">
+              <label class="form-label" for="vf-entrance-notes">Entrance &amp; Curb Cut Notes</label>
+              <input type="text" id="vf-entrance-notes" class="form-input" placeholder="e.g., Push-button bollard on right side of plaza doors" />
+            </div>
+          </fieldset>
+
+          <fieldset style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4);">
+            <legend style="font-weight: 700; color: var(--color-acid-lime); padding: 0 8px;">3. Facilities, Restroom Transfer &amp; Sensory Support</legend>
+            <div class="spec-columns">
+              <div>
+                <label class="form-label" for="vf-restroom">Accessible Restroom Type *</label>
+                <select id="vf-restroom" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="vf-grab-bars">Restroom Transfer Grab Bars *</label>
+                <select id="vf-grab-bars" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="vf-turning-circle">Restroom Turning Circle (cm) *</label>
+                <input type="number" id="vf-turning-circle" class="form-input" min="0" max="400" required value="170" />
+                <span class="form-hint">150 cm minimum for 360° wheelchair turn.</span>
+              </div>
+              <div>
+                <label class="form-label" for="vf-elevator">Elevator / Platform Lift Status *</label>
+                <select id="vf-elevator" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="vf-parking">Accessible Parking Bays *</label>
+                <input type="number" id="vf-parking" class="form-input" min="0" max="500" required value="4" />
+              </div>
+            </div>
+            <div class="filter-facets-row">
+              <label class="facet-check">
+                <input type="checkbox" id="vf-braille" checked />
+                <span>Braille &amp; Tactile Signage</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="vf-hearing" checked />
+                <span>Hearing Loop / Assistive Listening</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="vf-quiet" />
+                <span>Dedicated Quiet / Sensory Space</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-4); margin-bottom: var(--space-4);">
+            <legend style="font-weight: 700; color: var(--color-acid-lime); padding: 0 8px;">4. Interior Routes, Lighting &amp; Acoustics</legend>
+            <div class="spec-columns">
+              <div>
+                <label class="form-label" for="vf-surface">Primary Pathway Surface *</label>
+                <select id="vf-surface" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="vf-corridor">Min Interior Corridor Width (cm) *</label>
+                <input type="number" id="vf-corridor" class="form-input" min="50" max="500" required value="150" />
+              </div>
+              <div>
+                <label class="form-label" for="vf-lighting">Lighting Profile *</label>
+                <select id="vf-lighting" class="form-select" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="vf-acoustics">Acoustic Environment *</label>
+                <select id="vf-acoustics" class="form-select" required></select>
+              </div>
+            </div>
+            <div style="margin-top: var(--space-3);">
+              <label class="form-label" for="vf-route-notes">Interior Wayfinding &amp; Route Notes</label>
+              <input type="text" id="vf-route-notes" class="form-input" placeholder="e.g., Level terrazzo route from main lobby to auditorium" />
+            </div>
+          </fieldset>
+
+          <div style="display: flex; gap: var(--space-3); align-items: center;">
+            <button type="submit" class="btn btn-primary" id="btn-submit-venue">Publish Verified Venue Profile</button>
+            <button type="button" class="btn" id="btn-reset-venue-form">Reset Fields</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 3: VENUE PROFILE DETAIL, OBSERVATIONS, PHOTOS & PROVENANCE
+         ==================================================================== -->
+    <section id="view-venue-detail" class="view-section" aria-labelledby="detail-venue-name">
+      <div style="margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2);">
+        <button type="button" class="btn btn-xs" id="btn-back-to-directory">← Back to Directory &amp; Map</button>
+        <div id="detail-owner-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+      </div>
+
+      <div id="venue-detail-content">
+        <!-- Populated dynamically when a venue is selected -->
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 4: COVERAGE INSIGHTS & PROVENANCE (JOURNEY C)
+         ==================================================================== -->
+    <section id="view-insights" class="view-section" aria-labelledby="heading-insights">
+      <div class="spec-card">
+        <div class="spec-card-title">
+          <h2 id="heading-insights" style="margin: 0; font-size: 1.25rem;">Workspace Accessibility &amp; Freshness Insights</h2>
+          <button type="button" class="btn btn-xs btn-cobalt" id="btn-refresh-insights">Refresh Live Metrics</button>
+        </div>
+        <div id="insights-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 5: MODERATION QUEUE, PHOTO CONSENT REVIEW & AUDIT LOG
+         ==================================================================== -->
+    <section id="view-moderation" class="view-section" aria-labelledby="heading-moderation">
+      <div class="spec-card">
+        <div class="spec-card-title">
+          <h2 id="heading-moderation" style="margin: 0; font-size: 1.25rem;">Moderation Queue, Photo Consent Review &amp; Audit Trail</h2>
+          <button type="button" class="btn btn-xs btn-cobalt" id="btn-refresh-moderation">Refresh Queue</button>
+        </div>
+        <div id="moderation-container">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 6: ONBOARDING, PRIVACY, PERMISSIONS, EXPORT & SETTINGS
+         ==================================================================== -->
+    <section id="view-settings" class="view-section" aria-labelledby="heading-settings">
+      <div class="detail-grid">
+        <div class="spec-card">
+          <h2 id="heading-settings" class="spec-card-title">Permissions, Privacy &amp; Optional Integrations</h2>
+          <p style="font-size: 0.88rem; color: var(--text-secondary);">
+            AccessAble Atlas enforces strict server-side ownership, workspace boundaries, and privacy-by-default data handling before requesting any optional capability:
+          </p>
+          <ul style="font-size: 0.86rem; color: var(--text-primary); padding-left: 1.2rem;">
+            <li><strong>Photo Evidence Consent &amp; EXIF Scrubbing:</strong> Every uploaded photo is validated by binary magic bytes, stripped of GPS/camera EXIF metadata via server-side re-encoding, and held in private storage until consent is verified.</li>
+            <li><strong>Optional Accessibility Briefing (Non-Blocking):</strong> The directory works 100% without AI. Synthesized route briefings require your explicit consent toggle below.</li>
+            <li><strong>Privacy-Minimized Operational Telemetry (Tinybird):</strong> Only aggregate counts and freshness buckets are recorded when opted in—never raw text, emails, or photos.</li>
+          </ul>
+
+          <form id="settings-form" style="margin-top: var(--space-4);">
+            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+              <label class="facet-check">
+                <input type="checkbox" id="set-barrier-alerts" checked />
+                <span>Receive Active Barrier &amp; Elevator Outage Alerts</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="set-stale-digest" checked />
+                <span>Receive 90-Day Stale Venue Re-Verification Digest</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="set-mod-updates" checked />
+                <span>Receive Moderation &amp; Photo Consent Review Updates</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="set-ai-consent" />
+                <span><strong>Explicit Consent:</strong> Enable Optional Synthesized Accessibility Route Briefings</span>
+              </label>
+              <label class="facet-check">
+                <input type="checkbox" id="set-telemetry-optin" />
+                <span><strong>Explicit Consent:</strong> Allow Privacy-Minimized Aggregate Operational Telemetry</span>
+              </label>
+            </div>
+            <div style="margin-top: var(--space-4);">
+              <button type="submit" class="btn btn-primary">Save Privacy &amp; Notification Preferences</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="spec-card">
+          <h3 class="spec-card-title">Data Portability Export &amp; Platform Status</h3>
+          <p style="font-size: 0.86rem; color: var(--text-secondary);">
+            Export a complete, machine-readable JSON bundle of your workspace venues, structured access attributes, timestamped observations, saved views, and provenance audit trail.
+          </p>
+          <div style="margin-top: var(--space-3); padding: var(--space-3); background: var(--surface-panel); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+            <label class="facet-check" style="margin-bottom: var(--space-3);">
+              <input type="checkbox" id="export-confirm-check" />
+              <span>I confirm exporting workspace records for authorized portability/backup.</span>
+            </label>
+            <button type="button" class="btn btn-cobalt" id="btn-export-workspace">Export Verified JSON Bundle</button>
+          </div>
+          <pre id="export-preview-box" style="margin-top: var(--space-3); background: var(--color-midnight-black); border: 1px solid var(--border-subtle); padding: var(--space-3); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.74rem; max-height: 260px; overflow: auto;" hidden></pre>
+
+          <h4 style="margin-top: var(--space-5); margin-bottom: var(--space-2); font-size: 0.92rem;">Platform &amp; Adapter Health</h4>
+          <div id="platform-health-box" style="font-size: 0.82rem; color: var(--text-secondary);"></div>
+
+          <div style="margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-subtle);">
+            <h4 style="margin: 0 0 var(--space-2) 0; font-size: 0.95rem; color: var(--color-signal-orange);">Personal Data &amp; Account Deletion (Right to Erasure)</h4>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0;">
+              Permanently purge your personal email, display name, saved search views, and notification preferences, and revoke active session tokens. Non-identifying community accessibility observations remain attributed to an anonymized custodian.
+            </p>
+            <form id="account-delete-form" novalidate style="background: var(--surface-burgundy-alert); border: 1px solid var(--color-signal-orange); padding: var(--space-3); border-radius: var(--radius-sm);">
+              <label class="facet-check" style="margin-bottom: var(--space-2);">
+                <input type="checkbox" id="delete-account-confirm-check" />
+                <span>I understand this action permanently purges my personal account data *</span>
+              </label>
+              <div style="margin-bottom: var(--space-2);">
+                <label class="form-label" for="delete-account-phrase">Type <code>DELETE MY ACCOUNT</code> to confirm *</label>
+                <input type="text" id="delete-account-phrase" class="form-input" placeholder="DELETE MY ACCOUNT" />
+              </div>
+              <button type="submit" class="btn btn-danger btn-xs">Delete My Account &amp; Personal Data</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Authentication & Role Switch Modal -->
+  <div id="auth-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
+    <div class="modal-dialog">
+      <div class="spec-card-title">
+        <h2 id="auth-modal-title" style="margin: 0; font-size: 1.15rem;">Sign In or Create an AccessAble Atlas Account</h2>
+        <button type="button" class="btn btn-xs" id="btn-close-auth">Close [Esc]</button>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-secondary);">
+        Sign in with your account or select a seeded evaluation persona below (default password: <code>AtlasDemo!2026</code>):
+      </p>
+
+      <form id="auth-login-form" novalidate style="margin-bottom: var(--space-4);">
+        <div style="margin-bottom: var(--space-3);">
+          <label class="form-label" for="auth-email">Email Address *</label>
+          <input type="email" id="auth-email" class="form-input" required value="maya.chen@atlas-demo.local" />
+          <div class="field-error-msg" id="err-auth-email"></div>
+        </div>
+        <div style="margin-bottom: var(--space-3);">
+          <label class="form-label" for="auth-password">Password *</label>
+          <input type="password" id="auth-password" class="form-input" required value="AtlasDemo!2026" />
+          <div class="field-error-msg" id="err-auth-password"></div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In to Workspace</button>
+      </form>
+
+      <details style="border-top: 1px solid var(--border-subtle); padding-top: var(--space-3);">
+        <summary style="cursor: pointer; font-weight: 600; color: var(--color-acid-lime); font-size: 0.88rem;">
+          New Contributor or Venue Operator? Create Account
+        </summary>
+        <form id="auth-register-form" novalidate style="margin-top: var(--space-3);">
+          <div style="margin-bottom: var(--space-2);">
+            <label class="form-label" for="reg-name">Display Name *</label>
+            <input type="text" id="reg-name" class="form-input" required placeholder="e.g., Elena Rostova" />
+          </div>
+          <div style="margin-bottom: var(--space-2);">
+            <label class="form-label" for="reg-email">Email Address *</label>
+            <input type="email" id="reg-email" class="form-input" required placeholder="elena@example.org" />
+          </div>
+          <div style="margin-bottom: var(--space-2);">
+            <label class="form-label" for="reg-password">Password (min 8 chars) *</label>
+            <input type="password" id="reg-password" class="form-input" required />
+          </div>
+          <div style="margin-bottom: var(--space-3);">
+            <label class="form-label" for="reg-role">Community Role *</label>
+            <select id="reg-role" class="form-select">
+              <option value="contributor">Community Accessibility Contributor</option>
+              <option value="operator">Venue Operator / Facility Manager</option>
+              <option value="viewer">Viewer / Caregiver Planner</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-cobalt" style="width: 100%;">Create Account &amp; Sign In</button>
+        </form>
+      </details>
+    </div>
+  </div>
+
+  <footer style="border-top: 1px solid var(--border-subtle); padding: var(--space-4) var(--space-5); font-size: 0.78rem; color: var(--text-secondary); text-align: center;">
+    AccessAble Atlas · Sage Circuit Design System · Canonical Store: Supabase Schema · Accessibility &amp; Civic Tech
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
+
